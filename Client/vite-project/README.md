@@ -1,12 +1,43 @@
-# React + Vite
+# 🕒 Time Tracker App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A simple and powerful productivity web application designed to help users stay focused, avoid distractions, and build consistent work habits.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🎯 Project Overview
 
-## Expanding the ESLint configuration
+This app allows users to:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Set a task and desired focus time.
+- Start a real-time countdown session.
+- Get warned if trying to quit early.
+- Receive a sound notification when time is up.
+- Store and reuse task/session history from the database.
+
+## ✨ Features
+
+✅ **Core Functionality**
+
+- Create and save custom tasks with desired durations.  
+- Real-time countdown with second-by-second updates.  
+- Early exit warning pop-up to prevent quitting mid-session.  
+- Completion alerts via sound and notifications.  
+- Persistent task and session history with MySQL database.  
+
+✅ **Session History**
+
+- View all past tasks and sessions.  
+- Reuse previous tasks easily without retyping.  
+
+
+## 🛠️ Tech Stack
+
+**Frontend:**  
+- React.js  
+- CSS Modules  
+
+**Backend:**  
+- Node.js + Express  
+
+**Database:**  
+- MySQL  
