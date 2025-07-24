@@ -24,30 +24,18 @@ function App() {
   // Load tasks
   useEffect(() => {
     fetchTasks()
-      .then((res) => {
-        console.log("Fetched tasks:", res.data);
-        setTasks(res.data);
-      })
-      .catch((err) => {
-        console.error("Fetch tasks error:", err);
-        setError("Failed to load tasks: " + err.message);
-      });
+      .then((res) => setTasks(res.data))
+      .catch((err) => setError("Failed to load tasks: " + err.message));
   }, []);
 
   // Load sessions
   useEffect(() => {
     fetchSessions()
-      .then((res) => {
-        console.log("Fetched sessions:", res.data);
-        setSessions(res.data);
-      })
-      .catch((err) => {
-        console.error("Fetch sessions error:", err);
-        setError("Failed to load sessions: " + err.message);
-      });
+      .then((res) => setSessions(res.data))
+      .catch((err) => setError("Failed to load sessions: " + err.message));
   }, []);
 
-  // Handle beforeunload event
+  // Handle beforeunload event (warn user if timer is running)
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       if (timerRunning) {
@@ -59,36 +47,22 @@ function App() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [timerRunning]);
 
-  // Monitor localStorage for session updates
+  // Listen for sessionData updates from timer popup (via localStorage)
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === "sessionData" && e.newValue) {
         const sessionData = JSON.parse(e.newValue);
-        console.log("Received session data from timer:", sessionData);
         if (sessionData.task_id && sessionData.task_id !== 0) {
           createSession(sessionData)
-            .then((res) => {
-              console.log("Session saved successfully, id:", res.data.id);
-              return fetchSessions();
-            })
-            .then((res) => {
-              console.log("Sessions updated:", res.data);
-              setSessions(res.data);
-              localStorage.removeItem("sessionData");
-            })
-            .catch((err) => {
-              console.error(
-                "Create session error:",
-                err.response?.data || err.message
-              );
-              setError(
-                "Failed to save session: " +
-                  (err.response?.data?.error || err.message)
-              );
-            });
-        } else {
-          console.error("Invalid session data:", sessionData);
-          setError("Cannot save session: Invalid task_id");
+            .then(() => fetchSessions())
+            .then((res) => setSessions(res.data))
+            .catch((err) =>
+              setError("Failed to save session: " + (err.message || ""))
+            );
+          localStorage.removeItem("sessionData");
+          setTimerRunning(false);
+          setSelectedTask(null);
+          startTimeRef.current = null;
         }
       }
     };
@@ -98,19 +72,11 @@ function App() {
 
   const handleAddTask = (newTask) => {
     createTask(newTask)
-      .then((res) => {
-        console.log("Task created:", { ...newTask, task_id: res.data.id });
-        setTasks([...tasks, { ...newTask, task_id: res.data.id }]);
-        setError(null);
-      })
-      .catch((err) => {
-        console.error("Create task error:", err);
-        setError("Failed to add task: " + err.message);
-      });
+      .then((res) => setTasks([...tasks, { ...newTask, task_id: res.data.id }]))
+      .catch((err) => setError("Failed to add task: " + err.message));
   };
 
   const handleSelectTask = (task) => {
-    console.log("Selected task:", task);
     setSelectedTask(task);
     setModalType("start");
     setShowModal(true);
@@ -124,16 +90,9 @@ function App() {
       isNaN(selectedTask.duration) ||
       selectedTask.duration <= 0
     ) {
-      console.error("Invalid task selected:", selectedTask);
       setError("Please select a valid task with a positive numeric duration");
       return;
     }
-    console.log(
-      "Starting session for task:",
-      selectedTask,
-      "Duration (seconds):",
-      selectedTask.duration * 60
-    );
     setShowModal(false);
     setTimerRunning(true);
     startTimeRef.current = new Date();
@@ -141,10 +100,9 @@ function App() {
     const timerWindow = window.open(
       "/timer",
       "TimerWindow",
-      "width=300,height=200,menubar=no,toolbar=no,location=no,status=no"
+      "width=320,height=250,menubar=no,toolbar=no,location=no,status=no"
     );
     if (!timerWindow) {
-      console.error("Timer window blocked");
       setError("Popup blocked. Please allow popups and try again.");
       setTimerRunning(false);
       setShowModal(true);
@@ -153,32 +111,42 @@ function App() {
     }
     timerWindowRef.current = timerWindow;
 
-    // Pass data to timer window
+    // Pass task info to popup window via window properties
     timerWindow.taskName = selectedTask.name;
-    timerWindow.duration = selectedTask.duration * 60; // Convert minutes to seconds
+    timerWindow.duration = selectedTask.duration; // in minutes
     timerWindow.taskId = selectedTask.task_id;
     timerWindow.startTime = startTimeRef.current.toISOString();
-    console.log("Timer window initialized with:", {
-      taskName: timerWindow.taskName,
-      duration: timerWindow.duration,
-      taskId: timerWindow.taskId,
-      startTime: timerWindow.startTime,
-    });
 
+    // Define callbacks to handle stop and complete actions from popup
     timerWindow.onStop = () => {
-      console.log("Timer window requested stop");
       setModalType("stop");
       setShowModal(true);
     };
-    timerWindow.onComplete = handleTimerComplete;
-    timerWindow.setTimeLeft = (timeLeft) => {
-      console.log("Updating timeLeft in parent:", timeLeft);
-      setSelectedTask({ ...selectedTask, timeLeft });
+    timerWindow.onComplete = () => {
+      // On complete, save session and update sessions list
+      if (selectedTask && startTimeRef.current) {
+        const now = new Date();
+        const sessionData = {
+          task_id: selectedTask.task_id,
+          start_time: startTimeRef.current.toISOString(),
+          end_time: now.toISOString(),
+          status: "completed",
+        };
+        createSession(sessionData)
+          .then(() => fetchSessions())
+          .then((res) => setSessions(res.data))
+          .catch((err) =>
+            setError("Failed to save session: " + (err.message || ""))
+          );
+      }
+      setTimerRunning(false);
+      setSelectedTask(null);
+      startTimeRef.current = null;
     };
 
+    // Optional: monitor if popup closed unexpectedly
     const checkWindowClosed = setInterval(() => {
       if (timerWindowRef.current && timerWindowRef.current.closed) {
-        console.log("Timer window closed unexpectedly");
         clearInterval(checkWindowClosed);
         if (timerRunning) {
           handleStopSession();
@@ -189,16 +157,15 @@ function App() {
 
   const handleStopSession = () => {
     if (timerRunning) {
-      console.log("Stopping session for task:", selectedTask);
       setModalType("stop");
       setShowModal(true);
     }
   };
 
   const handleConfirmStop = () => {
-    console.log("Confirming stop for task:", selectedTask);
     setTimerRunning(false);
     setShowModal(false);
+
     if (selectedTask && startTimeRef.current && selectedTask.task_id) {
       const now = new Date();
       const sessionData = {
@@ -207,90 +174,25 @@ function App() {
         end_time: now.toISOString(),
         status: "incomplete",
       };
-      console.log("Saving session:", sessionData);
       createSession(sessionData)
-        .then((res) => {
-          console.log("Session saved successfully, id:", res.data.id);
-          return fetchSessions();
-        })
-        .then((res) => {
-          console.log("Sessions updated:", res.data);
-          setSessions(res.data);
-        })
-        .catch((err) => {
-          console.error(
-            "Create session error:",
-            err.response?.data || err.message
-          );
-          setError(
-            "Failed to save session: " +
-              (err.response?.data?.error || err.message)
-          );
-        });
-    } else {
-      console.error("No selected task or start time");
-      setError("Cannot save session: No task selected or session not started");
+        .then(() => fetchSessions())
+        .then((res) => setSessions(res.data))
+        .catch((err) =>
+          setError("Failed to save session: " + (err.message || ""))
+        );
     }
     setSelectedTask(null);
     startTimeRef.current = null;
-    if (timerWindowRef.current) {
-      timerWindowRef.current.close();
-      timerWindowRef.current = null;
-    }
-  };
 
-  const handleTimerComplete = () => {
-    console.log("Timer completed for task:", selectedTask);
-    if (selectedTask && startTimeRef.current && selectedTask.task_id) {
-      const now = new Date();
-      const sessionData = {
-        task_id: selectedTask.task_id,
-        start_time: startTimeRef.current.toISOString(),
-        end_time: now.toISOString(),
-        status: "completed",
-      };
-      console.log("Saving session:", sessionData);
-      createSession(sessionData)
-        .then((res) => {
-          console.log("Session saved successfully, id:", res.data.id);
-          return fetchSessions();
-        })
-        .then((res) => {
-          console.log("Sessions updated:", res.data);
-          setSessions(res.data);
-        })
-        .catch((err) => {
-          console.error(
-            "Create session error:",
-            err.response?.data || err.message
-          );
-          setError(
-            "Failed to save session: " +
-              (err.response?.data?.error || err.message)
-          );
-        });
-    } else {
-      console.error("No selected task or start time");
-      setError("Cannot save session: No task selected or session not started");
-    }
-    setTimerRunning(false);
-    setSelectedTask(null);
-    startTimeRef.current = null;
-    alert("Session complete!");
-    if (timerWindowRef.current) {
+    // Close popup if open
+    if (timerWindowRef.current && !timerWindowRef.current.closed) {
       timerWindowRef.current.close();
       timerWindowRef.current = null;
     }
   };
 
   return (
-    <div
-      style={{
-        padding: "2rem",
-        textAlign: "left",
-        writingMode: "horizontal-tb",
-      }}
-    >
+    <div style={{ padding: "2rem", textAlign: "left" }}>
       <h1>Focus Time Tracker</h1>
       {error && (
         <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>
@@ -298,6 +200,16 @@ function App() {
       <TaskForm onAddTask={handleAddTask} />
       <TaskList tasks={tasks} onSelectTask={handleSelectTask} />
       <SessionHistory sessions={sessions} />
+
+      {timerRunning && (
+        <div style={{ margin: "1rem 0", fontWeight: "bold" }}>
+          Session running for: <em>{selectedTask?.name}</em>
+          <button onClick={handleStopSession} style={{ marginLeft: "1rem" }}>
+            Stop
+          </button>
+        </div>
+      )}
+
       {showModal && selectedTask && (
         <Modal onClose={() => setShowModal(false)}>
           {modalType === "start" ? (

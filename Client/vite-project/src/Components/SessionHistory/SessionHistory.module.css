@@ -2,18 +2,33 @@
   margin-top: 2rem;
 }
 
+/* Make the list display horizontally */
 .list {
   list-style: none;
   padding: 0;
+  display: flex;          /* Horizontal layout */
+  flex-wrap: wrap;        /* Allow wrapping on smaller screens */
+  gap: 1rem;              /* Space between task items */
+  justify-content: flex-start;  /* Align items to the left */
 }
 
+/* Individual task item */
 .item {
   border: 1px solid #ccc;
   padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 4px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.05);
+  width: 200px;          /* Fixed width for consistent cards */
+  flex-shrink: 0;        /* Prevent shrinking */
+  transition: transform 0.2s ease;
 }
 
+.item:hover {
+  transform: translateY(-5px); /* Subtle lift on hover */
+}
+
+/* Space between inner elements of item */
 .item div {
   margin: 0.5rem 0;
 }
