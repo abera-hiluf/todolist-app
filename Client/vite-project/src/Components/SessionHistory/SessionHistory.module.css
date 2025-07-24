@@ -1,0 +1,19 @@
+.container {
+  margin-top: 2rem;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+}
+
+.item {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+}
+
+.item div {
+  margin: 0.5rem 0;
+}
