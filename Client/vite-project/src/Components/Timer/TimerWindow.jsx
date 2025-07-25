@@ -7,7 +7,7 @@ function TimerWindow() {
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const intervalRef = useRef(null);
-  const audioRef = useRef(new Audio("/alert.mp3"));
+  const audioRef = useRef(new Audio("/alert.wav"));
 
   // Timer countdown logic
   useEffect(() => {
