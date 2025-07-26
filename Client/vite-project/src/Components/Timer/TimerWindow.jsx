@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import styles from "./Timer.module.css";
 
 function TimerWindow() {
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes = 300 seconds
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const intervalRef = useRef(null);
   const audioRef = useRef(new Audio("/alert.wav"));
+const [timeLeft, setTimeLeft] = useState(() => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const minutes = parseInt(searchParams.get("duration") || "5", 10); // default 5
+  return minutes * 60;
+});
 
   // Timer countdown logic
   useEffect(() => {

@@ -98,10 +98,11 @@ function App() {
     startTimeRef.current = new Date();
 
     const timerWindow = window.open(
-      "/timer",
+      `/timer?duration=${selectedTask.duration}`,
       "TimerWindow",
       "width=320,height=250,menubar=no,toolbar=no,location=no,status=no"
     );
+
     if (!timerWindow) {
       setError("Popup blocked. Please allow popups and try again.");
       setTimerRunning(false);
