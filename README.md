@@ -40,3 +40,10 @@ This app allows users to:
 
 **Database:**  
 - MySQL  
+
+---
+
+## 🌐 Live Deployments
+
+- **Frontend (Vercel):** [https://todolist-app-frontend.vercel.app/](https://todolist-app-frontend.vercel.app/)
+- **Backend API (Render):** [https://to-dolist-back-end-1.onrender.com/api](https://to-dolist-back-end-1.onrender.com/api)
