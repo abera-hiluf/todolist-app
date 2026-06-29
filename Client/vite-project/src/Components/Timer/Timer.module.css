@@ -1,59 +1,232 @@
-.timerContainer {
-  position: absolute;
-  background: #fff;
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
   padding: 1rem;
-  border: 1px solid #ccc;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  cursor: move;
 }
 
-.timerHeading {
-  margin: 0 0 0.5rem;
-  font-size: 1.2rem;
-}
-
-.time {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.button {
-  padding: 0.5rem 1rem;
-  background: #ff4d4d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.button:hover {
-  background: #cc0000;
-}
-.timerWindow {
-  width: 200px;
-  padding: 1rem;
-  background-color: #fff;
-  border: 2px solid #333;
-  border-radius: 8px;
-  box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.2);
-  cursor: move;
-}
-
-.time {
-  font-size: 2rem;
-  font-weight: bold;
+.modal {
+  background: #ffffff;
+  padding: 2.5rem;
+  border-radius: 16px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  margin: 1rem 0;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.timerCircle {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.svgRing {
+  width: 200px;
+  height: 200px;
+  transform: rotate(-90deg);
+}
+
+.bgCircle {
+  fill: transparent;
+  stroke: #f1f5f9;
+  stroke-width: 8;
+}
+
+.fgCircle {
+  fill: transparent;
+  stroke: #3b82f6;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.timeText {
+  position: absolute;
+  font-size: 2.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+}
+
+.pauseBtn, .resumeBtn, .stopBtn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pauseBtn {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.pauseBtn:hover {
+  background-color: #e2e8f0;
+}
+
+.resumeBtn {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.resumeBtn:hover {
+  background-color: #2563eb;
 }
 
 .stopBtn {
-  background-color: #ff4d4f;
-  color: white;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.stopBtn:hover {
+  background-color: #dc2626;
+}
+
+/* Volume Slider Controls */
+.volumeWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
   width: 100%;
+  max-width: 220px;
+  background-color: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.volumeIcon {
+  font-size: 1rem;
+}
+
+.volumeSlider {
+  flex: 1;
+  cursor: pointer;
+  accent-color: #3b82f6;
+  height: 6px;
+}
+
+/* Custom Confirm Exit Modal */
+.confirmExitOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2100;
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.confirmExitCard {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+.confirmExitCard h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.confirmExitCard p {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+  display: block;
+}
+
+.confirmExitActions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.confirmStopBtn {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  background-color: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+  display: block;
+}
+
+.confirmStopBtn:hover {
+  background-color: #dc2626;
+}
+
+.confirmCancelBtn {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+  display: block;
+}
+
+.confirmCancelBtn:hover {
+  background-color: #e2e8f0;
 }

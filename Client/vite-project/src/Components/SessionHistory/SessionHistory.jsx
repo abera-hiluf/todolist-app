@@ -17,8 +17,8 @@ function SessionHistory({ sessions }) {
       <ul className={styles.list}>
         {sessions.map((session) => (
           <li key={session.id} className={styles.item}>
-            <div>
-              <strong>Task:</strong> {session.task_name || "Untitled Task"}
+            <div className={styles.taskName}>
+              {session.task_name || "Untitled Task"}
             </div>
             <div>
               <strong>Start:</strong>{" "}
@@ -33,7 +33,16 @@ function SessionHistory({ sessions }) {
                 : "In Progress"}
             </div>
             <div>
-              <strong>Status:</strong> {session.status || "Unknown"}
+              <strong>Status:</strong>
+              <span
+                className={
+                  session.status === "completed"
+                    ? styles.completedBadge
+                    : styles.incompleteBadge
+                }
+              >
+                {session.status || "Unknown"}
+              </span>
             </div>
           </li>
         ))}

@@ -1,41 +1,82 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import TaskForm from "./Components/TaskForm/TaskForm";
 import TaskList from "./Components/TaskList/TaskList";
 import SessionHistory from "./Components/SessionHistory/SessionHistory";
 import Modal from "./Components/Modal/Modal";
+import Timer from "./Components/Timer/Timer";
+import AuthForm from "./Components/Auth/AuthForm";
+import Toast from "./Components/Toast/Toast";
 import {
   fetchTasks,
   createTask,
   fetchSessions,
   createSession,
+  toggleTaskCompletion,
+  deleteTask,
 } from "./Components/api/api";
 
 function App() {
+  const [token, setToken] = useState(() => localStorage.getItem("token") || "");
+  const [username, setUsername] = useState(() => localStorage.getItem("username") || "");
   const [tasks, setTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState("");
-  const timerWindowRef = useRef(null);
-  const startTimeRef = useRef(null);
+  const [toast, setToast] = useState(null);
 
-  // Load tasks
+  const showNotification = (message, type = "success") => {
+    setToast({ message, type });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    setToken("");
+    setUsername("");
+    setTasks([]);
+    setSessions([]);
+    setSelectedTask(null);
+    setTimerRunning(false);
+    setError(null);
+    showNotification("Logged out successfully.", "info");
+  };
+
+  const handleAuthSuccess = (newToken, newUsername) => {
+    setToken(newToken);
+    setUsername(newUsername);
+    showNotification(`Welcome back, ${newUsername}!`, "success");
+  };
+
+  // Load tasks & sessions on token change
   useEffect(() => {
-    fetchTasks()
-      .then((res) => setTasks(res.data))
-      .catch((err) => setError("Failed to load tasks: " + err.message));
-  }, []);
+    if (token) {
+      setError(null);
+      
+      fetchTasks()
+        .then((res) => setTasks(res.data))
+        .catch((err) => {
+          if (err.response?.status === 401) {
+            handleLogout();
+          } else {
+            setError("Failed to load tasks: " + err.message);
+          }
+        });
 
-  // Load sessions
-  useEffect(() => {
-    fetchSessions()
-      .then((res) => setSessions(res.data))
-      .catch((err) => setError("Failed to load sessions: " + err.message));
-  }, []);
+      fetchSessions()
+        .then((res) => setSessions(res.data))
+        .catch((err) => {
+          if (err.response?.status === 401) {
+            handleLogout();
+          } else {
+            setError("Failed to load sessions: " + err.message);
+          }
+        });
+    }
+  }, [token]);
 
-  // Handle beforeunload event (warn user if timer is running)
+  // Warn user if timer is running and they attempt to close the tab
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       if (timerRunning) {
@@ -47,38 +88,23 @@ function App() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [timerRunning]);
 
-  // Listen for sessionData updates from timer popup (via localStorage)
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "sessionData" && e.newValue) {
-        const sessionData = JSON.parse(e.newValue);
-        if (sessionData.task_id && sessionData.task_id !== 0) {
-          createSession(sessionData)
-            .then(() => fetchSessions())
-            .then((res) => setSessions(res.data))
-            .catch((err) =>
-              setError("Failed to save session: " + (err.message || ""))
-            );
-          localStorage.removeItem("sessionData");
-          setTimerRunning(false);
-          setSelectedTask(null);
-          startTimeRef.current = null;
-        }
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
   const handleAddTask = (newTask) => {
     createTask(newTask)
-      .then((res) => setTasks([...tasks, { ...newTask, task_id: res.data.id }]))
-      .catch((err) => setError("Failed to add task: " + err.message));
+      .then((res) => {
+        setTasks([...tasks, { ...newTask, task_id: res.data.id, is_completed: 0 }]);
+        showNotification(`Task "${newTask.name}" added successfully!`, "success");
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          handleLogout();
+        } else {
+          showNotification("Failed to add task: " + err.message, "error");
+        }
+      });
   };
 
   const handleSelectTask = (task) => {
     setSelectedTask(task);
-    setModalType("start");
     setShowModal(true);
   };
 
@@ -90,157 +116,185 @@ function App() {
       isNaN(selectedTask.duration) ||
       selectedTask.duration <= 0
     ) {
-      setError("Please select a valid task with a positive numeric duration");
+      showNotification("Please select a valid task with a positive numeric duration.", "error");
       return;
     }
     setShowModal(false);
     setTimerRunning(true);
-    startTimeRef.current = new Date();
+  };
 
-    const timerWindow = window.open(
-      `/timer?duration=${selectedTask.duration}`,
-      "TimerWindow",
-      "width=320,height=250,menubar=no,toolbar=no,location=no,status=no"
-    );
-
-    if (!timerWindow) {
-      setError("Popup blocked. Please allow popups and try again.");
-      setTimerRunning(false);
-      setShowModal(true);
-      setModalType("start");
-      return;
-    }
-    timerWindowRef.current = timerWindow;
-
-    // Pass task info to popup window via window properties
-    timerWindow.taskName = selectedTask.name;
-    timerWindow.duration = selectedTask.duration; // in minutes
-    timerWindow.taskId = selectedTask.task_id;
-    timerWindow.startTime = startTimeRef.current.toISOString();
-
-    // Define callbacks to handle stop and complete actions from popup
-    timerWindow.onStop = () => {
-      setModalType("stop");
-      setShowModal(true);
-    };
-    timerWindow.onComplete = () => {
-      // On complete, save session and update sessions list
-      if (selectedTask && startTimeRef.current) {
-        const now = new Date();
-        const sessionData = {
-          task_id: selectedTask.task_id,
-          start_time: startTimeRef.current.toISOString(),
-          end_time: now.toISOString(),
-          status: "completed",
-        };
-        createSession(sessionData)
-          .then(() => fetchSessions())
-          .then((res) => setSessions(res.data))
-          .catch((err) =>
-            setError("Failed to save session: " + (err.message || ""))
-          );
-      }
-      setTimerRunning(false);
-      setSelectedTask(null);
-      startTimeRef.current = null;
-    };
-
-    // Optional: monitor if popup closed unexpectedly
-    const checkWindowClosed = setInterval(() => {
-      if (timerWindowRef.current && timerWindowRef.current.closed) {
-        clearInterval(checkWindowClosed);
-        if (timerRunning) {
-          handleStopSession();
+  const handleTimerComplete = (sessionData) => {
+    createSession(sessionData)
+      .then(() => fetchSessions())
+      .then((res) => {
+        setSessions(res.data);
+        setTimerRunning(false);
+        setSelectedTask(null);
+        showNotification(`Great job! Focus session completed for "${selectedTask.name}"! 🔥`, "success");
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          handleLogout();
+        } else {
+          showNotification("Failed to save completed session: " + (err.message || ""), "error");
+          setTimerRunning(false);
+          setSelectedTask(null);
         }
-      }
-    }, 500);
+      });
   };
 
-  const handleStopSession = () => {
-    if (timerRunning) {
-      setModalType("stop");
-      setShowModal(true);
-    }
+  const handleTimerCancel = (sessionData) => {
+    createSession(sessionData)
+      .then(() => fetchSessions())
+      .then((res) => {
+        setSessions(res.data);
+        setTimerRunning(false);
+        setSelectedTask(null);
+        showNotification(`Focus session on "${selectedTask.name}" was stopped early.`, "info");
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          handleLogout();
+        } else {
+          showNotification("Failed to save incomplete session: " + (err.message || ""), "error");
+          setTimerRunning(false);
+          setSelectedTask(null);
+        }
+      });
   };
 
-  const handleConfirmStop = () => {
-    setTimerRunning(false);
-    setShowModal(false);
-
-    if (selectedTask && startTimeRef.current && selectedTask.task_id) {
-      const now = new Date();
-      const sessionData = {
-        task_id: selectedTask.task_id,
-        start_time: startTimeRef.current.toISOString(),
-        end_time: now.toISOString(),
-        status: "incomplete",
-      };
-      createSession(sessionData)
-        .then(() => fetchSessions())
-        .then((res) => setSessions(res.data))
-        .catch((err) =>
-          setError("Failed to save session: " + (err.message || ""))
+  const handleToggleTaskCompletion = (taskId) => {
+    toggleTaskCompletion(taskId)
+      .then((res) => {
+        setTasks(
+          tasks.map((t) =>
+            t.task_id === taskId
+              ? { ...t, is_completed: res.data.is_completed }
+              : t
+          )
         );
-    }
-    setSelectedTask(null);
-    startTimeRef.current = null;
-
-    // Close popup if open
-    if (timerWindowRef.current && !timerWindowRef.current.closed) {
-      timerWindowRef.current.close();
-      timerWindowRef.current = null;
-    }
+        showNotification(
+          res.data.is_completed === 1
+            ? "Task marked as completed! 🎉"
+            : "Task marked as active.",
+          "success"
+        );
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          handleLogout();
+        } else {
+          showNotification("Failed to update task: " + err.message, "error");
+        }
+      });
   };
+
+  const handleDeleteTask = (taskId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this task? This will also remove all its session history."
+    );
+    if (!confirmDelete) return;
+
+    deleteTask(taskId)
+      .then(() => {
+        setTasks(tasks.filter((t) => t.task_id !== taskId));
+        // Refresh sessions to clear cascade deleted tasks
+        fetchSessions().then((res) => setSessions(res.data));
+        showNotification("Task deleted successfully.", "info");
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          handleLogout();
+        } else {
+          showNotification("Failed to delete task: " + err.message, "error");
+        }
+      });
+  };
+
+  if (!token) {
+    return <AuthForm onAuthSuccess={handleAuthSuccess} />;
+  }
 
   return (
     <div style={{ padding: "2rem", textAlign: "left" }}>
-      <h1>Focus Time Tracker</h1>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          borderBottom: "1px solid #e2e8f0",
+          paddingBottom: "1rem",
+        }}
+      >
+        <div>
+          <h1 style={{ margin: 0 }}>Focus Time Tracker</h1>
+          <span style={{ color: "#64748b", fontSize: "0.95rem" }}>
+            Logged in as: <strong>{username}</strong>
+          </span>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: "0.55rem 1.1rem",
+            backgroundColor: "#ef4444",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "6px",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+        >
+          Logout
+        </button>
+      </header>
+
       {error && (
         <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>
       )}
       <TaskForm onAddTask={handleAddTask} />
-      <TaskList tasks={tasks} onSelectTask={handleSelectTask} />
-      <SessionHistory sessions={sessions} />
+      
+      <TaskList
+        tasks={tasks}
+        onSelectTask={handleSelectTask}
+        onToggleComplete={handleToggleTaskCompletion}
+        onDeleteTask={handleDeleteTask}
+      />
 
-      {timerRunning && (
-        <div style={{ margin: "1rem 0", fontWeight: "bold" }}>
-          Session running for: <em>{selectedTask?.name}</em>
-          <button onClick={handleStopSession} style={{ marginLeft: "1rem" }}>
-            Stop
-          </button>
-        </div>
-      )}
+      <SessionHistory sessions={sessions} />
 
       {showModal && selectedTask && (
         <Modal onClose={() => setShowModal(false)}>
-          {modalType === "start" ? (
-            <>
-              <h2>Start Session</h2>
-              <p>
-                Start session for <strong>{selectedTask.name}</strong> (
-                {selectedTask.duration} minutes)?
-              </p>
-              <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
-                <button onClick={handleStartSession}>Start</button>
-                <button onClick={() => setShowModal(false)}>Cancel</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2>Stop Session</h2>
-              <p>
-                Nope! Finish your time for <strong>{selectedTask.name}</strong>.
-              </p>
-              <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
-                <button onClick={handleConfirmStop}>Stop Anyway</button>
-                <button onClick={() => setShowModal(false)}>Continue</button>
-              </div>
-            </>
-          )}
+          <h2>Start Session</h2>
+          <p>
+            Start focus session for <strong>{selectedTask.name}</strong> (
+            {selectedTask.duration} minutes)?
+          </p>
+          <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
+            <button onClick={handleStartSession}>Start</button>
+            <button onClick={() => setShowModal(false)}>Cancel</button>
+          </div>
         </Modal>
+      )}
+
+      {timerRunning && selectedTask && (
+        <Timer
+          task={selectedTask}
+          onComplete={handleTimerComplete}
+          onCancel={handleTimerCancel}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );
 }
 
 export default App;
+

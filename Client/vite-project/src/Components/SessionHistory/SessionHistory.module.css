@@ -1,34 +1,82 @@
 .container {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
 }
 
-/* Make the list display horizontally */
+.container h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+}
+
 .list {
   list-style: none;
   padding: 0;
-  display: flex;          /* Horizontal layout */
-  flex-wrap: wrap;        /* Allow wrapping on smaller screens */
-  gap: 1rem;              /* Space between task items */
-  justify-content: flex-start;  /* Align items to the left */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin: 1rem 0;
 }
 
-/* Individual task item */
+/* Individual history item card */
 .item {
-  border: 1px solid #ccc;
-  padding: 1rem;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.05);
-  width: 200px;          /* Fixed width for consistent cards */
-  flex-shrink: 0;        /* Prevent shrinking */
-  transition: transform 0.2s ease;
+  background-color: var(--card);
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .item:hover {
-  transform: translateY(-5px); /* Subtle lift on hover */
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
 }
 
-/* Space between inner elements of item */
 .item div {
-  margin: 0.5rem 0;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  line-height: 1.4;
+  text-align: left;
+}
+
+.item strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.taskName {
+  font-size: 1.05rem !important;
+  font-weight: 700;
+  color: var(--text-main) !important;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 0.4rem;
+}
+
+/* Completion Badges */
+.completedBadge, .incompleteBadge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 20px;
+  text-transform: capitalize;
+  margin-left: 0.25rem;
+}
+
+.completedBadge {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.incompleteBadge {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }

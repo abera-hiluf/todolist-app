@@ -5,14 +5,31 @@ function TaskForm({ onAddTask }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name || !duration || isNaN(duration) || duration <= 0) {
-      alert("Please provide a valid task name and duration");
+    setError("");
+
+    if (!name || name.trim().length === 0) {
+      setError("Task name is required.");
       return;
     }
-    onAddTask({ name, description, duration: parseInt(duration) });
+    if (name.length > 30) {
+      setError("Task name must be under 30 characters.");
+      return;
+    }
+    if (description && description.length > 100) {
+      setError("Description must be under 100 characters.");
+      return;
+    }
+    const parsedDuration = parseInt(duration, 10);
+    if (!duration || isNaN(parsedDuration) || parsedDuration <= 0) {
+      setError("Please provide a positive numeric duration (in minutes).");
+      return;
+    }
+
+    onAddTask({ name: name.trim(), description: description.trim(), duration: parsedDuration });
     setName("");
     setDescription("");
     setDuration("");
@@ -21,6 +38,7 @@ function TaskForm({ onAddTask }) {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <h2>Add Task</h2>
+      {error && <div className={styles.errorText}>{error}</div>}
       <div className={styles.formGroup}>
         <label htmlFor="name">Task Name:</label>
         <input
